@@ -1,16 +1,13 @@
 import { InjectionToken, NgZone } from '@angular/core';
 import { isPlatformServer } from '@angular/common';
-import { Observable, Subscription } from 'rxjs';
-import { queue } from 'rxjs/scheduler/queue';
+import { Observable, Subscription, queueScheduler as queue } from 'rxjs';
 import { first } from 'rxjs/operators';
 
-import firebase from '@firebase/app';
-import { FirebaseApp, FirebaseOptions } from '@firebase/app-types';
+import { firebase } from '@firebase/app';
+import { FirebaseApp, FirebaseOptions, FirebaseAppConfig } from '@firebase/app-types';
 
-import {} from 'zone.js';
-
-export const FirebaseAppName = new InjectionToken<string>('angularfire2.appName');
-export const FirebaseAppConfig = new InjectionToken<FirebaseOptions>('angularfire2.config');
+export const FirebaseOptionsToken = new InjectionToken<FirebaseOptions>('angularfire2.app.options');
+export const FirebaseNameOrConfigToken = new InjectionToken<string|FirebaseAppConfig|undefined>('angularfire2.app.nameOrConfig')
 
 // Put in database.ts when we drop database-depreciated
 export const RealtimeDatabaseURL = new InjectionToken<string>('angularfire2.realtimeDatabaseURL');

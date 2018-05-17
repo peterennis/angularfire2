@@ -20,17 +20,17 @@ module.exports = function(config) {
       'node_modules/zone.js/dist/async-test.js',
       'node_modules/zone.js/dist/fake-async-test.js',
 
-      'node_modules/rxjs/bundles/Rx.{js,map}',
+      'node_modules/rxjs/bundles/rxjs.umd.{js,map}',
 
       ...getAngularFiles(['core','common','compiler','platform-browser','platform-browser-dynamic']),
 
       'karma-test-shim.js',
       'node_modules/firebase/firebase.js',
-      'node_modules/firebase/firebase-firestore.js',
       'dist/packages-dist/bundles/core.umd.{js,map}',
       'dist/packages-dist/bundles/auth.umd.{js,map}',
       'dist/packages-dist/bundles/database.umd.{js,map}',
       'dist/packages-dist/bundles/firestore.umd.{js,map}',
+      'dist/packages-dist/bundles/functions.umd.{js,map}',
       'dist/packages-dist/bundles/storage.umd.{js,map}',
       'dist/packages-dist/bundles/database-deprecated.umd.{js,map}',
       'dist/packages-dist/bundles/test.umd.{js,map}',

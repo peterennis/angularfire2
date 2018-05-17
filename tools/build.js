@@ -1,6 +1,7 @@
 const { rollup } = require('rollup');
 const { spawn } = require('child_process');
-const { Observable } = require('rxjs');
+const { Observable, from, forkJoin } = require('rxjs');
+const { switchMap, switchMapTo, tap } = require('rxjs/operators');
 const { copy, readFileSync, writeFile, statSync } = require('fs-extra');
 const { prettySize } = require('pretty-size');
 const gzipSize = require('gzip-size');
@@ -9,73 +10,25 @@ const pkg = require(`${process.cwd()}/package.json`);
 
 // Rollup globals
 const GLOBALS = {
-  'rxjs': 'Rx',
-  'rxjs/Observable': 'Rx',
-  'rxjs/Subject': 'Rx',
-  'rxjs/Observer': 'Rx',
-  'rxjs/Subscription': 'Rx',
-  'rxjs/BehaviorSubject': 'Rx',
-  'rxjs/observable/merge': 'Rx.Observable',
-  'rxjs/operator/share': 'Rx.Observable.prototype',
-  'rxjs/operator/observeOn': 'Rx.Observable.prototype',
-  'rxjs/observable/of': 'Rx.Observable.prototype',
-  'rxjs/operator/combineLatest': 'Rx.Observable.prototype',
-  'rxjs/operator/merge': 'Rx.Observable.prototype',
-  'rxjs/operator/map': 'Rx.Observable.prototype',
-  'rxjs/operators': 'Rx.operators',
-  'rxjs/observable/of': 'Rx.Observable',
-  'rxjs/observable/forkJoin': 'Rx.Observable',
-  'rxjs/operator/auditTime': 'Rx.Observable.prototype',
-  'rxjs/operator/switchMap': 'Rx.Observable.prototype',
-  'rxjs/operator/do': 'Rx.Observable.prototype',
-  'rxjs/operator/skip': 'Rx.Observable.prototype',
-  'rxjs/operator/take': 'Rx.Observable.prototype',
-  'rxjs/operator/toArray': 'Rx.Observable.prototype',
-  'rxjs/operator/toPromise': 'Rx.Observable.prototype',
-  'rxjs/add/operator/catch': 'Rx.Observable.prototype',
-  'rxjs/add/operator/first': 'Rx.Observable.prototype',
-  'rxjs/add/operator/map': 'Rx.Observable.prototype',
-  'rxjs/add/operator/scan': 'Rx.Observable.prototype',
-  'rxjs/add/operator/skip': 'Rx.Observable.prototype',
-  'rxjs/add/operator/do': 'Rx.Observable.prototype',
-  'rxjs/add/operator/distinctUntilChanged': 'Rx.Observable.prototype',
-  'rxjs/add/operator/filter': 'Rx.Observable.prototype',
-  'rxjs/add/operator/skipUntil': 'Rx.Observable.prototype',
-  'rxjs/add/operator/skipWhile': 'Rx.Observable.prototype',
-  'rxjs/add/operator/withLatestFrom': 'Rx.Observable.prototype',
-  'rxjs/add/operator/switchMap': 'Rx.Observable.prototype',
-  'rxjs/add/observable/merge': 'Rx.Observable',
-  'rxjs/add/observable/of': 'Rx.Observable.prototype',
-  'rxjs/add/observable/fromPromise': 'Rx.Observable.prototype',
-  'rxjs/add/operator/delay': 'Rx.Observable',
-  'rxjs/add/operator/debounce': 'Rx.Observable',
-  'rxjs/add/operator/share': 'Rx.Observable',
-  'rxjs/observable/fromEvent': 'Rx.Observable',
-  'rxjs/observable/from': 'Rx.Observable',
-  'rxjs/operator': 'Rx.Observable.prototype',
-  '@angular/core': 'ng.core',
+  'rxjs': 'rxjs',
+  'rxjs/operators': 'rxjs.operators',
   '@angular/common': 'ng.common',
   '@angular/compiler': 'ng.compiler',
+  '@angular/core': 'ng.core',
+  '@angular/core/testing': 'ng.core.testing',
   '@angular/platform-browser': 'ng.platformBrowser',
-  'firebase/auth': 'firebase',
-  'firebase/app': 'firebase',
-  'firebase/database': 'firebase',
-  'firebase/firestore': 'firebase',
-  'firebase/storage': 'firebase',
-  '@firebase/auth': 'firebase',
   '@firebase/app': 'firebase',
+  '@firebase/auth': 'firebase',
   '@firebase/database': 'firebase',
   '@firebase/firestore': 'firebase',
+  '@firebase/functions': 'firebase',
   '@firebase/storage': 'firebase',
-  '@firebase/util': 'firebase',
-  '@firebase/webchannel-wrapper': 'firebase',
-  'rxjs/scheduler/queue': 'Rx.Scheduler',
-  '@angular/core/testing': 'ng.core.testing',
   'angularfire2': 'angularfire2',
   'angularfire2/auth': 'angularfire2.auth',
   'angularfire2/database': 'angularfire2.database',
   'angularfire2/database-deprecated': 'angularfire2.database_deprecated',
   'angularfire2/firestore': 'angularfire2.firestore',
+  'angularfire2/functions': 'angularfire2.functions',
   'angularfire2/storage': 'angularfire2.storage',
   'zone.js': 'Zone'
 };
@@ -84,9 +37,10 @@ const GLOBALS = {
 const VERSIONS = {
   ANGULAR_VERSION: pkg.dependencies['@angular/core'],
   FIREBASE_APP_VERSION: pkg.dependencies['@firebase/app'],
+  FIREBASE_AUTH_VERSION: pkg.dependencies['@firebase/auth'],
   FIREBASE_DATABASE_VERSION: pkg.dependencies['@firebase/database'],
   FIREBASE_FIRESTORE_VERSION: pkg.dependencies['@firebase/firestore'],
-  FIREBASE_AUTH_VERSION: pkg.dependencies['@firebase/auth'],
+  FIREBASE_FUNCTIONS_VERSION: pkg.dependencies['@firebase/functions'],
   FIREBASE_STORAGE_VERSION: pkg.dependencies['@firebase/storage'],
   RXJS_VERSION: pkg.dependencies['rxjs'],
   ZONEJS_VERSION: pkg.dependencies['zone.js'],
@@ -104,6 +58,7 @@ const MODULE_NAMES = {
   database: 'angularfire2.database',
   "database-deprecated": 'angularfire2.database_deprecated',
   firestore: 'angularfire2.firestore',
+  functions: 'angularfire2.functions',
   storage: 'angularfire2.storage'
 };
 
@@ -113,6 +68,7 @@ const ENTRIES = {
   database: `${process.cwd()}/dist/packages-dist/database/index.js`,
   "database-deprecated": `${process.cwd()}/dist/packages-dist/database-deprecated/index.js`,
   firestore: `${process.cwd()}/dist/packages-dist/firestore/index.js`,
+  functions: `${process.cwd()}/dist/packages-dist/functions/index.js`,
   storage: `${process.cwd()}/dist/packages-dist/storage/index.js`
 };
 
@@ -123,6 +79,7 @@ const SRC_PKG_PATHS = {
   "database-deprecated": `${process.cwd()}/src/database-deprecated/package.json`,
   firestore: `${process.cwd()}/src/firestore/package.json`,
   "firebase-node": `${process.cwd()}/src/firebase-node/package.json`,
+  functions: `${process.cwd()}/src/functions/package.json`,
   storage: `${process.cwd()}/src/storage/package.json`
 };
 
@@ -133,6 +90,7 @@ const DEST_PKG_PATHS = {
   "database-deprecated": `${process.cwd()}/dist/packages-dist/database-deprecated/package.json`,
   firestore: `${process.cwd()}/dist/packages-dist/firestore/package.json`,
   "firebase-node": `${process.cwd()}/dist/packages-dist/firebase-node/package.json`,
+  functions: `${process.cwd()}/dist/packages-dist/functions/package.json`,
   storage: `${process.cwd()}/dist/packages-dist/storage/package.json`
 };
 
@@ -141,6 +99,7 @@ const FIREBASE_FEATURE_MODULES = {
   auth: `${process.cwd()}/node_modules/@firebase/auth/dist/auth.js`,
   database: `${process.cwd()}/node_modules/@firebase/database/dist/esm/index.js`,
   firestore: `${process.cwd()}/node_modules/@firebase/firestore/dist/esm/index.js`,
+  functions: `${process.cwd()}/node_modules/@firebase/functions/dist/esm/index.js`,
   storage: `${process.cwd()}/node_modules/@firebase/storage/dist/esm/index.js`,
   util: `${process.cwd()}/node_modules/@firebase/util/dist/esm/index.js`,
 };
@@ -181,7 +140,7 @@ function generateBundle(entry, { dest, globals, moduleName }) {
 
 function createFirebaseBundles(featurePaths, globals) {
   return Object.keys(featurePaths).map(feature => {
-    return generateBundle(featurePaths[feature], { 
+    return generateBundle(featurePaths[feature], {
       dest: `${process.cwd()}/dist/bundles/${feature}.js`,
       globals,
       moduleName: `firebase.${feature}`
@@ -301,6 +260,7 @@ function getVersions() {
     getDestPackageFile('database'),
     getDestPackageFile('firestore'),
     getDestPackageFile('firebase-node'),
+    getDestPackageFile('functions'),
     getDestPackageFile('storage'),
     getDestPackageFile('database-deprecated')
   ];
@@ -324,10 +284,10 @@ function buildModule(name, globals) {
   const es2015$ = spawnObservable(NGC, TSC_ARGS(name));
   const esm$ = spawnObservable(NGC, TSC_ARGS(name, 'esm'));
   const test$ = spawnObservable(TSC, TSC_ARGS(name, 'test'));
-  return Observable
-    .forkJoin(es2015$, esm$, test$)
-    .switchMap(() => Observable.from(createUmd(name, globals)))
-    .switchMap(() => replaceVersionsObservable(name, VERSIONS));
+  return forkJoin(es2015$, esm$, test$).pipe(
+    switchMap(() => from(createUmd(name, globals))),
+    switchMap(() => replaceVersionsObservable(name, VERSIONS))
+  );
 }
 
 /**
@@ -339,32 +299,34 @@ function buildModules(globals) {
   const auth$ = buildModule('auth', globals);
   const db$ = buildModule('database', globals);
   const firestore$ = buildModule('firestore', globals);
+  const functions$ = buildModule('functions', globals);
   const storage$ = buildModule('storage', globals);
   const dbdep$ = buildModule('database-deprecated', globals);
-  return Observable
-    .forkJoin(core$, Observable.from(copyRootTest()))
-    .switchMapTo(auth$)
-    .switchMapTo(db$)
-    .switchMapTo(firestore$)
-    .switchMapTo(storage$)
-    .switchMapTo(dbdep$);
+  return forkJoin(core$, from(copyRootTest())).pipe(
+    switchMapTo(auth$),
+    switchMapTo(db$),
+    switchMapTo(firestore$),
+    switchMapTo(functions$),
+    switchMapTo(storage$),
+    switchMapTo(dbdep$)
+  );
 }
 
 function buildLibrary(globals) {
   const modules$ = buildModules(globals);
-  return Observable
-    .forkJoin(modules$)
-    .switchMap(() => Observable.from(createTestUmd(globals)))
-    .switchMap(() => Observable.from(copyNpmIgnore()))
-    .switchMap(() => Observable.from(copyReadme()))
-    .switchMap(() => Observable.from(copyDocs()))
-    .switchMap(() => Observable.from(copyNodeFixes()))
-    .switchMap(() => replaceVersionsObservable('firebase-node', VERSIONS))
-    .do(() => {
+  return forkJoin(modules$).pipe(
+    switchMap(() => from(createTestUmd(globals))),
+    switchMap(() => from(copyNpmIgnore())),
+    switchMap(() => from(copyReadme())),
+    switchMap(() => from(copyDocs())),
+    switchMap(() => from(copyNodeFixes())),
+    switchMap(() => replaceVersionsObservable('firebase-node', VERSIONS)),
+    tap(() => {
       const coreStats = measure('core');
       const authStats = measure('auth');
       const dbStats = measure('database');
       const fsStats = measure('firestore');
+      const functionsStats = measure('functions');
       const storageStats = measure('storage');
       const dbdepStats = measure('database-deprecated');
       console.log(`
@@ -372,11 +334,12 @@ function buildLibrary(globals) {
       auth.umd.js - ${authStats.size}, ${authStats.gzip}
       database.umd.js - ${dbStats.size}, ${dbStats.gzip}
       firestore.umd.js - ${fsStats.size}, ${fsStats.gzip}
+      functions.umd.js - ${functionsStats.size}, ${functionsStats.gzip}
       storage.umd.js - ${storageStats.size}, ${storageStats.gzip}
       database-deprecated.umd.js - ${dbdepStats.size}, ${dbdepStats.gzip}
       `);
       verifyVersions();
-    });
+    }));
 }
 
 buildLibrary(GLOBALS).subscribe(

@@ -3,8 +3,8 @@ import { FirebaseStorage, UploadMetadata } from '@firebase/storage-types';
 import { createStorageRef, AngularFireStorageReference } from './ref';
 import { createUploadTask, AngularFireUploadTask } from './task';
 import { Observable } from 'rxjs';
-import { FirebaseAppConfig, FirebaseAppName, FirebaseZoneScheduler, _firebaseAppFactory } from 'angularfire2';
-import { FirebaseOptions } from '@firebase/app-types';
+import { FirebaseOptionsToken, FirebaseNameOrConfigToken, FirebaseZoneScheduler, _firebaseAppFactory } from 'angularfire2';
+import { FirebaseOptions, FirebaseAppConfig } from '@firebase/app-types';
 
 export const StorageBucket = new InjectionToken<string>('angularfire2.storageBucket');
 
@@ -21,15 +21,15 @@ export class AngularFireStorage {
   public readonly scheduler: FirebaseZoneScheduler;
 
   constructor(
-    @Inject(FirebaseAppConfig) config:FirebaseOptions,
-    @Optional() @Inject(FirebaseAppName) name:string,
+    @Inject(FirebaseOptionsToken) options:FirebaseOptions,
+    @Optional() @Inject(FirebaseNameOrConfigToken) nameOrConfig:string|FirebaseAppConfig|undefined,
     @Optional() @Inject(StorageBucket) storageBucket:string,
     @Inject(PLATFORM_ID) platformId: Object,
     zone: NgZone
   ) {
     this.scheduler = new FirebaseZoneScheduler(zone, platformId);
     this.storage = zone.runOutsideAngular(() => {
-      const app = _firebaseAppFactory(config, name);
+      const app = _firebaseAppFactory(options, nameOrConfig);
       return app.storage(storageBucket || undefined);
     });
   }

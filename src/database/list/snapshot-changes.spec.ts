@@ -1,5 +1,5 @@
 import { Reference } from '@firebase/database-types';
-import { FirebaseApp, FirebaseAppConfig, AngularFireModule } from 'angularfire2';
+import { FirebaseApp, AngularFireModule } from 'angularfire2';
 import { AngularFireDatabase, AngularFireDatabaseModule, snapshotChanges, ChildEvent } from 'angularfire2/database';
 import { TestBed, inject } from '@angular/core/testing';
 import { COMMON_CONFIG } from '../test-config';
@@ -54,7 +54,7 @@ describe('snapshotChanges', () => {
 
   it('should listen to all events by default', (done) => {
     const { snapChanges, ref } = prepareSnapshotChanges();
-    snapChanges.take(1).subscribe(actions => {
+    snapChanges.pipe(take(1)).subscribe(actions => {
       const data = actions.map(a => a.payload!.val());
       expect(data).toEqual(items);
     }).add(done);

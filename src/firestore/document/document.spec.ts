@@ -1,4 +1,4 @@
-import { FirebaseApp, FirebaseAppConfig, AngularFireModule } from 'angularfire2';
+import { FirebaseApp, AngularFireModule } from 'angularfire2';
 import { AngularFirestore } from '../firestore';
 import { AngularFirestoreModule } from '../firestore.module';
 import { AngularFirestoreDocument } from '../document/document';
@@ -57,7 +57,7 @@ describe('AngularFirestoreDocument', () => {
     const stock = new AngularFirestoreDocument<Stock>(ref, afs);
     await stock.set(FAKE_STOCK_DATA);
     const obs$ = stock.valueChanges();
-    obs$.pipe(take(1)).subscribe(async (data: Stock) => {
+    obs$.pipe(take(1)).subscribe(async data => {
       expect(JSON.stringify(data)).toBe(JSON.stringify(FAKE_STOCK_DATA));
       stock.delete().then(done).catch(done.fail);
     });
