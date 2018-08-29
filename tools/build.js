@@ -20,6 +20,7 @@ const GLOBALS = {
   'firebase/app': 'firebase',
   'firebase/auth': 'firebase',
   'firebase/database': 'firebase',
+  'firebase/messaging': 'firebase',
   'firebase/firestore': 'firebase',
   'firebase/functions': 'firebase',
   'firebase/storage': 'firebase',
@@ -29,7 +30,8 @@ const GLOBALS = {
   'angularfire2/database-deprecated': 'angularfire2.database_deprecated',
   'angularfire2/firestore': 'angularfire2.firestore',
   'angularfire2/functions': 'angularfire2.functions',
-  'angularfire2/storage': 'angularfire2.storage'
+  'angularfire2/storage': 'angularfire2.storage',
+  'angularfire2/messaging': 'angularfire2.messaging',
 };
 
 // Map of dependency versions across all packages
@@ -53,7 +55,8 @@ const MODULE_NAMES = {
   "database-deprecated": 'angularfire2.database_deprecated',
   firestore: 'angularfire2.firestore',
   functions: 'angularfire2.functions',
-  storage: 'angularfire2.storage'
+  storage: 'angularfire2.storage',
+  messaging: 'angularfire2.messaging',
 };
 
 const ENTRIES = {
@@ -63,7 +66,8 @@ const ENTRIES = {
   "database-deprecated": `${process.cwd()}/dist/packages-dist/database-deprecated/index.js`,
   firestore: `${process.cwd()}/dist/packages-dist/firestore/index.js`,
   functions: `${process.cwd()}/dist/packages-dist/functions/index.js`,
-  storage: `${process.cwd()}/dist/packages-dist/storage/index.js`
+  storage: `${process.cwd()}/dist/packages-dist/storage/index.js`,
+  messaging: `${process.cwd()}/dist/packages-dist/messaging/index.js`,
 };
 
 const SRC_PKG_PATHS = {
@@ -74,7 +78,8 @@ const SRC_PKG_PATHS = {
   firestore: `${process.cwd()}/src/firestore/package.json`,
   "firebase-node": `${process.cwd()}/src/firebase-node/package.json`,
   functions: `${process.cwd()}/src/functions/package.json`,
-  storage: `${process.cwd()}/src/storage/package.json`
+  storage: `${process.cwd()}/src/storage/package.json`,
+  messaging: `${process.cwd()}/src/messaging/package.json`,
 };
 
 const DEST_PKG_PATHS = {
@@ -85,7 +90,8 @@ const DEST_PKG_PATHS = {
   firestore: `${process.cwd()}/dist/packages-dist/firestore/package.json`,
   "firebase-node": `${process.cwd()}/dist/packages-dist/firebase-node/package.json`,
   functions: `${process.cwd()}/dist/packages-dist/functions/package.json`,
-  storage: `${process.cwd()}/dist/packages-dist/storage/package.json`
+  storage: `${process.cwd()}/dist/packages-dist/storage/package.json`,
+  messaging: `${process.cwd()}/dist/packages-dist/messaging/package.json`,
 };
 
 // Constants for running typescript commands
@@ -109,15 +115,15 @@ function spawnObservable(command, args) {
   });
 }
 
-function generateBundle(entry, { dest, globals, moduleName }) {
-  return rollup({ entry }).then(bundle => {
+function generateBundle(input, { file, globals, name }) {
+  return rollup({ input }).then(bundle => {
     return bundle.write({
       format: 'umd',
       external: Object.keys(globals),
       plugins: [resolve()],
-      dest,
+      file,
       globals,
-      moduleName,
+      name,
     });
   });
 }
@@ -125,9 +131,9 @@ function generateBundle(entry, { dest, globals, moduleName }) {
 function createFirebaseBundles(featurePaths, globals) {
   return Object.keys(featurePaths).map(feature => {
     return generateBundle(featurePaths[feature], {
-      dest: `${process.cwd()}/dist/bundles/${feature}.js`,
+      file: `${process.cwd()}/dist/bundles/${feature}.js`,
       globals,
-      moduleName: `firebase.${feature}`
+      name: `firebase.${feature}`
     });
   });
 }
@@ -142,9 +148,9 @@ function createUmd(name, globals) {
   const moduleName = MODULE_NAMES[name];
   const entry = ENTRIES[name];
   return generateBundle(entry, {
-    dest: `${process.cwd()}/dist/packages-dist/bundles/${name}.umd.js`,
+    file: `${process.cwd()}/dist/packages-dist/bundles/${name}.umd.js`,
     globals,
-    moduleName
+    name: moduleName
   });
 }
 
@@ -152,9 +158,9 @@ function createTestUmd(globals) {
   const entry = `${process.cwd()}/dist/root.spec.js`;
   const moduleName = 'angularfire2.test';
   return generateBundle(entry, {
-    dest: `${process.cwd()}/dist/packages-dist/bundles/test.umd.js`,
+    file: `${process.cwd()}/dist/packages-dist/bundles/test.umd.js`,
     globals,
-    moduleName
+    name: moduleName
   });
 }
 
@@ -246,6 +252,7 @@ function getVersions() {
     getDestPackageFile('firebase-node'),
     getDestPackageFile('functions'),
     getDestPackageFile('storage'),
+    getDestPackageFile('messaging'),
     getDestPackageFile('database-deprecated')
   ];
   return paths
@@ -285,6 +292,7 @@ function buildModules(globals) {
   const firestore$ = buildModule('firestore', globals);
   const functions$ = buildModule('functions', globals);
   const storage$ = buildModule('storage', globals);
+  const messaging$ = buildModule('messaging', globals);
   const dbdep$ = buildModule('database-deprecated', globals);
   return forkJoin(core$, from(copyRootTest())).pipe(
     switchMapTo(auth$),
@@ -292,6 +300,7 @@ function buildModules(globals) {
     switchMapTo(firestore$),
     switchMapTo(functions$),
     switchMapTo(storage$),
+    switchMapTo(messaging$),
     switchMapTo(dbdep$)
   );
 }
@@ -312,6 +321,7 @@ function buildLibrary(globals) {
       const fsStats = measure('firestore');
       const functionsStats = measure('functions');
       const storageStats = measure('storage');
+      const messagingStats = measure('messaging');
       const dbdepStats = measure('database-deprecated');
       console.log(`
       core.umd.js - ${coreStats.size}, ${coreStats.gzip}
@@ -320,6 +330,7 @@ function buildLibrary(globals) {
       firestore.umd.js - ${fsStats.size}, ${fsStats.gzip}
       functions.umd.js - ${functionsStats.size}, ${functionsStats.gzip}
       storage.umd.js - ${storageStats.size}, ${storageStats.gzip}
+      messaging.umd.js - ${messagingStats.size}, ${messagingStats.gzip}
       database-deprecated.umd.js - ${dbdepStats.size}, ${dbdepStats.gzip}
       `);
       verifyVersions();
