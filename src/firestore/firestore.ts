@@ -2,13 +2,13 @@ import { InjectionToken, NgZone, PLATFORM_ID, Injectable, Inject, Optional } fro
 
 import { Observable, of, from } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { firestore } from 'firebase/app';
+import { firestore } from 'firebase';
 
 import { Settings, CollectionReference, DocumentReference, QueryFn, AssociatedReference } from './interfaces';
 import { AngularFirestoreDocument } from './document/document';
 import { AngularFirestoreCollection } from './collection/collection';
 
-import { FirebaseFirestore, FirebaseOptions, FirebaseAppConfig, FirebaseOptionsToken, FirebaseNameOrConfigToken, _firebaseAppFactory, FirebaseZoneScheduler } from 'angularfire2';
+import { FirebaseFirestore, FirebaseOptions, FirebaseAppConfig, FirebaseOptionsToken, FirebaseNameOrConfigToken, _firebaseAppFactory, FirebaseZoneScheduler } from '@angular/fire';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -47,7 +47,7 @@ export function associateQuery(collectionRef: CollectionReference, queryFn = ref
  * Example:
  *
  * import { Component } from '@angular/core';
- * import { AngularFirestore, AngularFirestoreCollection, AngularFirestoreDocument } from 'angularfire2/firestore';
+ * import { AngularFirestore, AngularFirestoreCollection, AngularFirestoreDocument } from '@angular/fire/firestore';
  * import { Observable } from 'rxjs/Observable';
  * import { from } from 'rxjs/observable/from';
  *
